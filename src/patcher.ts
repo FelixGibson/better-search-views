@@ -108,16 +108,13 @@ export class Patcher {
               // Create a new section for "potential mentions"
               const potentialMentionsSection = document.createElement("div");
               potentialMentionsSection.id = 'potentialMentions';
-              potentialMentionsSection.textContent = "Potential Mentions:";
+              potentialMentionsSection.textContent = "Potential mentions";
+              potentialMentionsSection.className = unlinkedHeaderEl.className;
+              unlinkedHeaderEl.parentNode.appendChild(potentialMentionsSection);
 
               // Process each line individually
               for (const line of lines) {
-                if (line.contains(basename)) {
-                  continue;
-                }
-                // Check if the line refers to the current file
-                if (line.contains(basename + ".md" + ':')) {
-                  // If it does, skip this line
+                if (line.toLowerCase().includes(basename.toLowerCase())) {
                   continue;
                 }
 
@@ -125,13 +122,12 @@ export class Patcher {
                 // Create a new child element for the line
                 const lineElement = document.createElement("div");
                 lineElement.textContent = line;
+                lineElement.className = unlinkedHeaderEl.className;
 
                 // Add the child element to the "potential mentions" section
-                potentialMentionsSection.appendChild(lineElement);
+                unlinkedHeaderEl.parentNode.appendChild(lineElement);
               }
 
-              // Append the "potential mentions" section to the parent of unlinkedHeaderEl
-              unlinkedHeaderEl.parentNode.appendChild(potentialMentionsSection);
             }
           }
 
