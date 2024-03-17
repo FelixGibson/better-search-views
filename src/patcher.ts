@@ -7,6 +7,7 @@ import BetterSearchViewsPlugin from "./plugin";
 import { wikiLinkBrackets } from "./patterns";
 import { DisposerRegistry } from "./disposer-registry";
 import { dedupeMatches } from "./context-tree/dedupe/dedupe-matches";
+import { exec, execSync } from "child_process";
 
 const errorTimeout = 10000;
 
@@ -29,6 +30,8 @@ export class Patcher {
   private triedPatchingSearchResultItem = false;
   private triedPatchingRenderContentMatches = false;
   private readonly disposerRegistry = new DisposerRegistry();
+  private processedDeduped = new Set<string>();
+  private cache = new Map<string, string>();
 
   constructor(private readonly plugin: BetterSearchViewsPlugin) {}
 
@@ -57,6 +60,18 @@ export class Patcher {
         },
       }),
     );
+    this.plugin.register(
+      around(Component.prototype, {
+        recomputeBacklink(old) {
+          return function (...args) {
+            console.log('recomputeBacklink has been called'); // Add your hook logic here
+      
+            // Call the original function
+            return old.call(this, ...args);
+          };
+        },
+      });
+    )
   }
 
   patchSearchResultDom(searchResultDom: any) {
@@ -93,6 +108,18 @@ export class Patcher {
         },
       }),
     );
+  }
+  addSpacesToText(text: string): string {
+    // Match Chinese characters and English words separately
+    const matches = text.match(/[\u4e00-\u9fff]|[\w']+/g);
+  
+    if (matches) {
+      // Add spaces between Chinese characters and English words
+      return matches.join(' ');
+    } else {
+      // If no matches, return the original text
+      return text;
+    }
   }
 
   patchSearchResultItem(searchResultItem: any) {
@@ -143,6 +170,43 @@ export class Patcher {
               );
 
               const deduped = [...new Set(highlights)];
+              const highlightsString = patcher.addSpacesToText(deduped.join(" "));
+              if (patcher.cache.has(highlightsString)) {
+                const cachedResult = this.cache.get(highlightsString);
+                const potentialBacklinksSection = document.createElement("div");
+                potentialBacklinksSection.textContent = cachedResult;
+                this.el.appendChild(potentialBacklinksSection);
+              } else {
+                try {
+                  const options = { 
+                    cwd: '/home/felix/software/git-felix/Dropbox/Dropbox/logseq-obsidian-off1',
+                    maxBuffer: 1024 * 1024 // Increase buffer to 10MB
+                  };
+
+                  const stdout = execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString();
+                  // this.cache.set(highlightsString, stdout);
+                  const lines = stdout.split("\n");
+                  // Create a new section for "potential backlinks" and add the results of the search to this section
+                  // Now you can process each line individually
+                  for (const line of lines) {
+                    // Create a new section for "potential backlinks" and add the results of the search to this section
+                    const potentialBacklinksSection = document.createElement("div");
+                    potentialBacklinksSection.textContent = line;
+
+                    // Add the new section to the search result item
+                    this.el.appendChild(potentialBacklinksSection);
+                  }
+              
+                } catch (error) {
+                  patcher.reportError(
+                    error,
+                    `Failed to execute grep and fzf command for file path: ${this.file.path}`,
+                  );
+                }
+                
+
+
+              }
 
               const firstMatch = this.vChildren._children[0];
               patcher.mountContextTreeOnMatchEl(
