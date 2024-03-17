@@ -75,6 +75,13 @@ export class Patcher {
       const basename = file?.basename ?? "";
       if (backlink != null) {
         const highlightsString = patcher.addSpacesToText(basename);
+        // backlink.unlinkedCollapsed = false;
+        if (backlink.unlinkedCollapsed == true) {
+          backlink.unlinkedHeaderEl.click();
+        }
+        if (backlink.extraContext == false) {
+          backlink.extraContextButtonEl.click();
+        }
         try {
           const options = {
             cwd: '/home/felix/software/git-felix/Dropbox/Dropbox/logseq-obsidian-off1',
