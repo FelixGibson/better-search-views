@@ -33,7 +33,7 @@ export class Patcher {
   private processedDeduped = new Set<string>();
   private cache = new Map<string, string>();
 
-  constructor(private readonly plugin: BetterSearchViewsPlugin) {}
+  constructor(private readonly plugin: BetterSearchViewsPlugin) { }
 
   patchComponent() {
     const patcher = this;
@@ -60,18 +60,76 @@ export class Patcher {
         },
       }),
     );
-    this.plugin.register(
-      around(Component.prototype, {
-        recomputeBacklink(old) {
-          return function (...args) {
-            console.log('recomputeBacklink has been called'); // Add your hook logic here
-      
-            // Call the original function
-            return old.call(this, ...args);
+
+    // this.plugin.app.workspace.onLayoutReady(() => {
+    //   const activeEditor: any = this.plugin.app.workspace.activeEditor;
+    //   const backlink = activeEditor?.backlinks;
+    //   if (backlink != null) {
+    //     console.log("fdafdf");
+    //   }
+    // });
+    this.plugin.app.workspace.on('active-leaf-change', () => {
+      const activeEditor: any = this.plugin.app.workspace.activeEditor;
+      const backlink = activeEditor?.backlinks;
+      const file = this.plugin.app.workspace.getActiveFile();
+      const basename = file?.basename ?? "";
+      if (backlink != null) {
+        const highlightsString = patcher.addSpacesToText(basename);
+        try {
+          const options = {
+            cwd: '/home/felix/software/git-felix/Dropbox/Dropbox/logseq-obsidian-off1',
+            maxBuffer: 1024 * 1024 // Increase buffer to 10MB
           };
-        },
-      });
-    )
+
+          const stdout = execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString();
+          // this.cache.set(highlightsString, stdout);
+          const lines = stdout.split("\n");
+                    
+          // Find the unlinkedHeaderEl in the backlink object
+          const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
+          if (unlinkedHeaderEl) {
+            // Check if a "potential mentions" section already exists
+            const parentNode = unlinkedHeaderEl.parentNode;
+            if (parentNode) {
+              const existingSection = Array.from(parentNode.children).find((child: HTMLElement) => child.id === 'potentialMentions');
+              if (existingSection) {
+                // If it does, remove it
+                if (existingSection.parentNode) {
+                  existingSection.parentNode.removeChild(existingSection);
+                }
+              }
+              // Create a new section for "potential mentions"
+              const potentialMentionsSection = document.createElement("div");
+              potentialMentionsSection.id = 'potentialMentions';
+              potentialMentionsSection.textContent = "Potential Mentions:";
+
+              // Process each line individually
+              for (const line of lines) {
+                // Create a new child element for the line
+                const lineElement = document.createElement("div");
+                lineElement.textContent = line;
+
+                // Add the child element to the "potential mentions" section
+                potentialMentionsSection.appendChild(lineElement);
+              }
+
+              // Append the "potential mentions" section to the parent of unlinkedHeaderEl
+              unlinkedHeaderEl.parentNode.appendChild(potentialMentionsSection);
+
+            }
+
+          }
+
+        } catch (error) {
+          patcher.reportError(
+            error,
+            `Failed to execute grep and fzf command for file path: ${basename}`,
+          );
+        }
+      }
+
+    });
+
   }
 
   patchSearchResultDom(searchResultDom: any) {
@@ -112,7 +170,7 @@ export class Patcher {
   addSpacesToText(text: string): string {
     // Match Chinese characters and English words separately
     const matches = text.match(/[\u4e00-\u9fff]|[\w']+/g);
-  
+
     if (matches) {
       // Add spaces between Chinese characters and English words
       return matches.join(' ');
@@ -170,43 +228,7 @@ export class Patcher {
               );
 
               const deduped = [...new Set(highlights)];
-              const highlightsString = patcher.addSpacesToText(deduped.join(" "));
-              if (patcher.cache.has(highlightsString)) {
-                const cachedResult = this.cache.get(highlightsString);
-                const potentialBacklinksSection = document.createElement("div");
-                potentialBacklinksSection.textContent = cachedResult;
-                this.el.appendChild(potentialBacklinksSection);
-              } else {
-                try {
-                  const options = { 
-                    cwd: '/home/felix/software/git-felix/Dropbox/Dropbox/logseq-obsidian-off1',
-                    maxBuffer: 1024 * 1024 // Increase buffer to 10MB
-                  };
 
-                  const stdout = execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString();
-                  // this.cache.set(highlightsString, stdout);
-                  const lines = stdout.split("\n");
-                  // Create a new section for "potential backlinks" and add the results of the search to this section
-                  // Now you can process each line individually
-                  for (const line of lines) {
-                    // Create a new section for "potential backlinks" and add the results of the search to this section
-                    const potentialBacklinksSection = document.createElement("div");
-                    potentialBacklinksSection.textContent = line;
-
-                    // Add the new section to the search result item
-                    this.el.appendChild(potentialBacklinksSection);
-                  }
-              
-                } catch (error) {
-                  patcher.reportError(
-                    error,
-                    `Failed to execute grep and fzf command for file path: ${this.file.path}`,
-                  );
-                }
-                
-
-
-              }
 
               const firstMatch = this.vChildren._children[0];
               patcher.mountContextTreeOnMatchEl(
