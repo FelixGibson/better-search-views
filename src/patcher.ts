@@ -65,14 +65,27 @@ export class Patcher {
   private triedPatchingSearchResultItem = false;
   private triedPatchingRenderContentMatches = false;
   private readonly disposerRegistry = new DisposerRegistry();
-  private processedDeduped = new Set<string>();
-  private cache = new Map<string, string>();
 
   constructor(private readonly plugin: BetterSearchViewsPlugin) { }
 
   escapeRegExp(str: string) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
   }
+
+  executeCommand(highlightsString: string, options: any) {
+    return execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString().trim();
+  }
+
+  getAliasLines(aliases: any, options: any) {
+    const aliasLines = [];
+    for (const alias of aliases) {
+      const aliasHighlightsString = this.addSpacesToText(alias);
+      const aliasStdout = this.executeCommand(aliasHighlightsString, options);
+      aliasLines.push(...aliasStdout.split("\n"));
+    }
+    return aliasLines;
+  }
+  
   patchComponent() {
     const patcher = this;
     this.plugin.register(
@@ -98,6 +111,8 @@ export class Patcher {
         },
       }),
     );
+
+    
 
     // this.plugin.app.workspace.onLayoutReady(() => {
     //   const activeEditor: any = this.plugin.app.workspace.activeEditor;
@@ -134,10 +149,21 @@ export class Patcher {
               maxBuffer: 10 * 1024 * 1024 // Increase buffer to 10MB
           };
 
-          const stdout = execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString().trim();
-          // this.cache.set(highlightsString, stdout);
-          const lines = stdout.split("\n");
-                    
+
+
+          const stdout = this.executeCommand(highlightsString, options);
+          let lines = stdout.split("\n");
+
+          const aimFile: TFile | null | undefined = this.plugin.app.workspace.activeEditor?.file;
+          if (aimFile) {
+            const metadataCache = app.metadataCache.getFileCache(aimFile);
+            const aliases = metadataCache?.frontmatter?.aliases;
+            if (aliases) {
+              lines.push(...this.getAliasLines(aliases, options));
+            }
+          }
+          lines = Array.from(new Set(lines));
+                                        
           // Find the unlinkedHeaderEl in the backlink object
           const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
           if (unlinkedHeaderEl) {
