@@ -35,6 +35,9 @@ export class Patcher {
 
   constructor(private readonly plugin: BetterSearchViewsPlugin) { }
 
+  escapeRegExp(str: string) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+  }
   patchComponent() {
     const patcher = this;
     this.plugin.register(
@@ -150,7 +153,7 @@ export class Patcher {
 
                   const fileText: string = await this.plugin.app.vault.read(tfile);
                   //find start index of card
-                  const startIndex = fileText.search(content.trim());
+                  const startIndex = fileText.search(this.escapeRegExp(content.trim()));
                   if (startIndex != -1) {
                       const n = {
                           match: {
