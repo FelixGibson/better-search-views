@@ -84,9 +84,16 @@ export class Patcher {
         }
         try {
           let adapter: any = this.plugin.app.vault.adapter;
+          const pathToFzf = '/opt/homebrew/bin'; // Replace with the actual path to fzf
+          const modifiedPath = `${process.env.PATH}:${pathToFzf}`;
+          
           const options = {
-            cwd: adapter.getBasePath(),
-            maxBuffer: 10 * 1024 * 1024 // Increase buffer to 10MB
+              env: {
+                  ...process.env,
+                  PATH: modifiedPath,
+              },
+              cwd: adapter.getBasePath(),
+              maxBuffer: 10 * 1024 * 1024 // Increase buffer to 10MB
           };
 
           const stdout = execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString().trim();
@@ -126,9 +133,9 @@ export class Patcher {
                 }
                 // Parse the line to extract the path, basename, and content
                 const [filePath, content] = line.split(":");
-                const pathParts = filePath.split("/");
-                const basenameOfContent = pathParts[pathParts.length - 1];
-                const tfile: any = this.plugin.app.vault.getAbstractFileByPath(basenameOfContent);
+                // const pathParts = filePath.split("/");
+                // const basenameOfContent = pathParts[pathParts.length - 1];
+                const tfile: any = this.plugin.app.vault.getAbstractFileByPath(filePath);
                 if (tfile == null) {
                   continue;
                 }
