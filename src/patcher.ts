@@ -155,15 +155,32 @@ export class Patcher {
           let lines = stdout.split("\n");
 
           const aimFile: TFile | null | undefined = this.plugin.app.workspace.activeEditor?.file;
+          let aliases: string[] = [];
           if (aimFile) {
             const metadataCache = app.metadataCache.getFileCache(aimFile);
-            const aliases = metadataCache?.frontmatter?.aliases;
-            if (aliases) {
+            aliases = metadataCache?.frontmatter?.aliases;
+            if (aliases && aliases.length > 0) {
               lines.push(...this.getAliasLines(aliases, options));
             }
           }
           lines = Array.from(new Set(lines));
-                                        
+          // Convert basename and aliases to lowercase for case-insensitive comparison
+          const basenameLower = basename.toLowerCase();
+          let aliasesLower: string[] = [];
+          if (aliases) {
+            aliasesLower = aliases.map(alias => alias.toLowerCase());
+          }
+          lines = lines.filter(line => {
+            const lineLower = line.toLowerCase();
+            // Check if line contains basename or any alias
+            if (lineLower.includes(basenameLower) || (aliasesLower && aliasesLower.some(alias => lineLower.includes(alias)))) {
+              return false; // If it does, exclude it from the new array
+            }
+            return true; // If it doesn't, include it in the new array
+          });
+
+          
+
           // Find the unlinkedHeaderEl in the backlink object
           const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
           if (unlinkedHeaderEl) {
@@ -192,9 +209,6 @@ export class Patcher {
 
               // Process each line individually
               for (const line of lines) {
-                if (line.toLowerCase().includes(basename.toLowerCase())) {
-                  continue;
-                }
                 // Parse the line to extract the path, basename, and content
                 const [filePath, content] = line.split(":");
                 // const pathParts = filePath.split("/");
