@@ -23,6 +23,41 @@ function getHighlightsFromVChild(vChild: any) {
     .replace(wikiLinkBrackets, "");
 }
 
+// function scrollToTextInEditor(editor, text) {
+//   // Create a search cursor that finds the text in the document
+//   let cursor = editor.getSearchCursor(text);
+//   let found = cursor.findNext();
+  
+//   if (found) {
+//     // If the text was found, scroll to the text's position
+//     editor.scrollIntoView({ from: cursor.from(), to: cursor.to() }, 200);
+//     // Optionally highlight the text
+//     editor.setSelection(cursor.from(), cursor.to());
+//   } else {
+//     console.log('Text not found in the document');
+//   }
+// }
+
+// async function openFileAndScrollToText(filePath, searchText) {
+//   // Open the file
+//   await app.workspace.openLinkText(filePath, '', true);
+  
+//   // Get the active view
+//   let activeLeaf = app.workspace.activeLeaf;
+//   if (activeLeaf) {
+//     let markdownView = activeLeaf.view;
+    
+//     if (markdownView instanceof obsidian.MarkdownView) {
+//       // Wait for the editor to be ready if needed
+//       setTimeout(() => {
+//         // Get editor instance
+//         let editor = markdownView.editor;
+//         scrollToTextInEditor(editor, searchText);
+//       }, 50); // A short delay to ensure the editor is initialized
+//     }
+//   }
+// }
+
 export class Patcher {
   private readonly wrappedMatches = new WeakSet();
   private readonly wrappedSearchResultItems = new WeakSet();
@@ -161,13 +196,21 @@ export class Patcher {
                               matches: [[startIndex, startIndex + content.length]],
                           },
                       };
-                      activeLeaf.openFile(tfile, {
-                          active: true,
-                          eState: n,
+                      // activeLeaf.openFile(tfile, {
+                      //     active: true,
+                      //     eState: n,
+                      // });
+                      this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
+                        active: true,
+                        eState: n,
                       });
+                      // openFileAndScrollToText(tfile.basename, line);
                   } 
                   else {
-                    await activeLeaf.openFile(tfile);
+                    this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
+                      active: true,
+                    });
+                    // await activeLeaf.openFile(tfile);
                     // const activeView: MarkdownView =
                     //     this.app.workspace.getActiveViewOfType(MarkdownView);
                     // activeView.editor.setCursor({
