@@ -1,4 +1,4 @@
-import { Component, Notice } from "obsidian";
+import { Component, LinkCache, Notice, TAbstractFile, TFile, WorkspaceLeaf } from "obsidian";
 import { around } from "monkey-around";
 import { createPositionFromOffsets } from "./metadata-cache-util/position";
 import { createContextTree } from "./context-tree/create/create-context-tree";
@@ -83,12 +83,13 @@ export class Patcher {
           backlink.extraContextButtonEl.click();
         }
         try {
+          let adapter: any = this.plugin.app.vault.adapter;
           const options = {
-            cwd: '/home/felix/software/git-felix/Dropbox/Dropbox/logseq-obsidian-off1',
-            maxBuffer: 1024 * 1024 // Increase buffer to 10MB
+            cwd: adapter.getBasePath(),
+            maxBuffer: 10 * 1024 * 1024 // Increase buffer to 10MB
           };
 
-          const stdout = execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString();
+          const stdout = execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString().trim();
           // this.cache.set(highlightsString, stdout);
           const lines = stdout.split("\n");
                     
@@ -105,6 +106,12 @@ export class Patcher {
                   existingSection.parentNode.removeChild(existingSection);
                 }
               }
+              const existingLines = Array.from(parentNode.children).filter((child: HTMLElement) => child.id === 'potentialMentionLine');
+              for (const line of existingLines) {
+                if (line.parentNode) {
+                  line.parentNode.removeChild(line);
+                }
+              }
               // Create a new section for "potential mentions"
               const potentialMentionsSection = document.createElement("div");
               potentialMentionsSection.id = 'potentialMentions';
@@ -117,13 +124,49 @@ export class Patcher {
                 if (line.toLowerCase().includes(basename.toLowerCase())) {
                   continue;
                 }
-
+                // Parse the line to extract the path, basename, and content
+                const [filePath, content] = line.split(":");
+                const pathParts = filePath.split("/");
+                const basenameOfContent = pathParts[pathParts.length - 1];
+                const tfile: any = this.plugin.app.vault.getAbstractFileByPath(basenameOfContent);
+                if (tfile == null) {
+                  continue;
+                }
 
                 // Create a new child element for the line
                 const lineElement = document.createElement("div");
                 lineElement.textContent = line;
+                lineElement.id = 'potentialMentionLine';
                 lineElement.className = unlinkedHeaderEl.className;
+                lineElement.addEventListener("click", async () => {
+                  const activeLeaf: WorkspaceLeaf = this.plugin.app.workspace.getLeaf();
 
+                  const fileText: string = await this.plugin.app.vault.read(tfile);
+                  //find start index of card
+                  const startIndex = fileText.search(content.trim());
+                  if (startIndex != -1) {
+                      const n = {
+                          match: {
+                              content: fileText,
+                              matches: [[startIndex, startIndex + content.length]],
+                          },
+                      };
+                      activeLeaf.openFile(tfile, {
+                          active: true,
+                          eState: n,
+                      });
+                  } 
+                  else {
+                    await activeLeaf.openFile(tfile);
+                    // const activeView: MarkdownView =
+                    //     this.app.workspace.getActiveViewOfType(MarkdownView);
+                    // activeView.editor.setCursor({
+                    //     line: this.currentCard.lineNo,
+                    //     ch: 0,
+                    // });
+                    // activeView.editor.scrollTo(this.currentCard.lineNo, 0);
+                }
+              });
                 // Add the child element to the "potential mentions" section
                 unlinkedHeaderEl.parentNode.appendChild(lineElement);
               }
