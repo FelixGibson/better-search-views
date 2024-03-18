@@ -66,7 +66,7 @@ export class Patcher {
   private triedPatchingRenderContentMatches = false;
   private readonly disposerRegistry = new DisposerRegistry();
   private processedDeduped = new Set<string>();
-  private cache = new Map<string, string>();
+  private cache = new Map<string, string[]>();
 
   constructor(private readonly plugin: BetterSearchViewsPlugin) { }
 
@@ -134,9 +134,16 @@ export class Patcher {
               maxBuffer: 10 * 1024 * 1024 // Increase buffer to 10MB
           };
 
-          const stdout = execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString().trim();
-          // this.cache.set(highlightsString, stdout);
-          const lines = stdout.split("\n");
+          const cachedOutput: string[] | undefined = this.cache.get(highlightsString);
+          let lines: string[];
+          if (!cachedOutput) {
+            const stdout = execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString().trim();
+            // this.cache.set(highlightsString, stdout);
+            lines = stdout.split("\n");
+            this.cache.set(highlightsString, lines);
+          } else {
+            lines = cachedOutput;
+          }
                     
           // Find the unlinkedHeaderEl in the backlink object
           const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
