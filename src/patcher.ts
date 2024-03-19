@@ -141,6 +141,22 @@ export class Patcher {
         // Now update the UI
         this.updateUIWithLines(lines, backlink, 'Keywords mentions');
 
+
+        const secondtranslatedKeywords = jsonObject.iterations[0].translatedKeywords;
+
+        // Generate a command or any string from keywords you want to pass to executeCommand
+        const second = secondtranslatedKeywords.join(' '); // or any other logic
+
+        // Call your executeCommand with this command string and handle it as a promise
+        const result = this.executeCommand(second, option);
+        let secondLines = result.split("\n");
+        // Here you would filter lines or any other processing you originally did
+        // ...
+        secondLines = this.preprocessLines(secondLines, basename, aliases, existingLines);
+        // Now update the UI
+        this.updateUIWithLines(secondLines, backlink, 'Translated Keywords mentions');
+
+
     }).catch(error => {
         console.error('Error fetching content from Coze: ', error);
     });
