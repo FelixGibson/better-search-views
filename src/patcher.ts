@@ -193,6 +193,11 @@ export class Patcher {
         section.className = unlinkedHeaderEl.className;
         div.appendChild(section);
 
+        const sectionForLines = document.createElement("div");
+        // sectionForLines.id = type;
+        // if (unlinkedHeaderEl && unlinkedHeaderEl.parentElement) {
+        //   sectionForLines.className = unlinkedHeaderEl.parentElement.className;
+        // }
         // Process each line individually
         for (const line of lines) {
           // Parse the line to extract the path, basename, and content
@@ -232,7 +237,7 @@ export class Patcher {
             }
           });
           // Add the child element to the "potential mentions" section
-          div.appendChild(lineElement);
+          sectionForLines.appendChild(lineElement);
         }
         // Check if a "potential mentions" section already exists
         const parentNode = unlinkedHeaderEl.parentNode;
@@ -242,6 +247,11 @@ export class Patcher {
             parentNode.removeChild(existingSection);
           }
         }
+        // add some space between the sections
+        const space = document.createElement("div");
+        space.style.height = "10px";
+        div.appendChild(sectionForLines);
+        div.appendChild(space);
         parentNode.appendChild(div);
       }
     }
