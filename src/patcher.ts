@@ -8,6 +8,7 @@ import { wikiLinkBrackets } from "./patterns";
 import { DisposerRegistry } from "./disposer-registry";
 import { dedupeMatches } from "./context-tree/dedupe/dedupe-matches";
 import { exec, execSync } from "child_process";
+import axios from "axios";
 
 const errorTimeout = 10000;
 
@@ -22,6 +23,35 @@ function getHighlightsFromVChild(vChild: any) {
     .toLowerCase()
     .replace(wikiLinkBrackets, "");
 }
+
+async function associatedFromCoze(query: string): Promise<string> {
+  try {
+    const response = await axios.post('https://api.coze.com/open_api/v2/chat', {
+      bot_id: "7347974486534356999",
+      user: "29032201862555",
+      query: query,
+      stream: false
+    }, {
+      headers: {
+        'Authorization': 'Bearer BkcTIVOBBDzNk6nstThfmzBsSZ836V0U0WCnWsJmGdYcm0PlQFozxzbcIcWYJuN2',
+        'Content-Type': 'application/json',
+        'Accept': '*/*'
+      }
+    });
+
+    if (response.data && response.data.messages && response.data.messages.length > 0) {
+      // Assuming you always want the first message's content
+      return response.data.messages[0].content;
+    }
+
+    
+  } catch (error) {
+    console.error('Error fetching content from Coze:', error);
+  }
+  return "";
+}
+
+
 
 // function scrollToTextInEditor(editor, text) {
 //   // Create a search cursor that finds the text in the document
@@ -92,7 +122,100 @@ export class Patcher {
     }
     return aliasLines;
   }
-  
+  // Call `associatedFromCoze`, use `executeCommand` with its result, update UI asynchronously
+  useKeywordsAndUpdateUI(query: string, option: any, originBasename: string, aliases: string[], backlink: any) {
+    associatedFromCoze(query).then(response => {
+      const jsonObject = JSON.parse(response);
+        // Assuming response is already parsed JSON as your structure
+        const firstIterationKeywords = jsonObject.iterations[0].keywords;
+
+        // Generate a command or any string from keywords you want to pass to executeCommand
+        const commandFromKeywords = firstIterationKeywords.join(' '); // or any other logic
+
+        // Call your executeCommand with this command string and handle it as a promise
+        const commandResult = this.executeCommand(commandFromKeywords, option);
+        const lines = commandResult.split("\n");
+        // Here you would filter lines or any other processing you originally did
+        // ...
+
+        // Now update the UI
+        this.updateUIWithLines(lines, backlink, 'Keywords mentions');
+
+    }).catch(error => {
+        console.error('Error fetching content from Coze: ', error);
+    });
+  }
+
+  updateUIWithLines(lines: string[], backlink: any, type: string) {
+    // Find the unlinkedHeaderEl in the backlink object
+    const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
+    const div = document.createElement("div");
+    div.id = type;
+    if (unlinkedHeaderEl) {
+      // Check if a "potential mentions" section already exists
+      const parentNode = unlinkedHeaderEl.parentNode;
+      if (parentNode) {
+        // Create a new section for "potential mentions"
+        const section = document.createElement("div");
+        section.id = type;
+        section.textContent = type;
+        section.className = unlinkedHeaderEl.className;
+        div.appendChild(section);
+
+        // Process each line individually
+        for (const line of lines) {
+          // Parse the line to extract the path, basename, and content
+          const [filePath, content] = line.split(":");
+          // const pathParts = filePath.split("/");
+          // const basenameOfContent = pathParts[pathParts.length - 1];
+          const tfile: any = this.plugin.app.vault.getAbstractFileByPath(filePath);
+          if (tfile == null) {
+            continue;
+          }
+
+          // Create a new child element for the line
+          const lineElement = document.createElement("div");
+          lineElement.textContent = line;
+          lineElement.className = unlinkedHeaderEl.className;
+          lineElement.addEventListener("click", async () => {
+            const fileText: string = await this.plugin.app.vault.read(tfile);
+            //find start index of card
+            const startIndex = fileText.search(this.escapeRegExp(content.trim()));
+            if (startIndex != -1) {
+                const n = {
+                    match: {
+                        content: fileText,
+                        matches: [[startIndex, startIndex + content.length]],
+                    },
+                };
+                this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
+                  active: true,
+                  eState: n,
+                });
+                // openFileAndScrollToText(tfile.basename, line);
+            } 
+            else {
+              this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
+                active: true,
+              });
+          }
+        });
+          // Add the child element to the "potential mentions" section
+          div.appendChild(lineElement);
+        }
+        // Check if a "potential mentions" section already exists
+        const parentNode = unlinkedHeaderEl.parentNode;
+        if (parentNode) {
+          const existingSection = Array.from(parentNode.children).find((child: HTMLElement) => child.id === type);
+          if (existingSection) {
+            parentNode.removeChild(existingSection);
+          }
+        }
+        parentNode.appendChild(div);
+      }
+    }
+  }
+
   patchComponent() {
     const patcher = this;
     this.plugin.register(
@@ -171,6 +294,22 @@ export class Patcher {
               lines.push(...this.getAliasLines(aliases, options));
             }
           }
+
+          this.useKeywordsAndUpdateUI(highlightsString, options, basename, aliases, backlink);
+
+
+          // // Usage example, catching error in usage as function is now async and may throw
+          // associatedFromCoze(highlightsString).then((content) => {
+          //   console.log(content); // "Hello! How can I assist you today?"
+          // }).catch((error) => {
+          //   console.log('An error occurred:', error.message);
+          // });
+          // call associatedFromCoze
+          // const associatedSentenceResult = this.executeCommand(, options);
+
+          
+          // lines.push(...associatedSentenceResult.split("\n"));
+
           lines = Array.from(new Set(lines));
           // Convert basename and aliases to lowercase for case-insensitive comparison
           const basenameLower = basename.toLowerCase();
@@ -187,93 +326,93 @@ export class Patcher {
             return true; // If it doesn't, include it in the new array
           });
 
-          
+          this.updateUIWithLines(lines, backlink, 'Potential mentions');
 
-          // Find the unlinkedHeaderEl in the backlink object
-          const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
-          if (unlinkedHeaderEl) {
-            // Check if a "potential mentions" section already exists
-            const parentNode = unlinkedHeaderEl.parentNode;
-            if (parentNode) {
-              const existingSection = Array.from(parentNode.children).find((child: HTMLElement) => child.id === 'potentialMentions');
-              if (existingSection) {
-                // If it does, remove it
-                if (existingSection.parentNode) {
-                  existingSection.parentNode.removeChild(existingSection);
-                }
-              }
-              const existingLines = Array.from(parentNode.children).filter((child: HTMLElement) => child.id === 'potentialMentionLine');
-              for (const line of existingLines) {
-                if (line.parentNode) {
-                  line.parentNode.removeChild(line);
-                }
-              }
-              // Create a new section for "potential mentions"
-              const potentialMentionsSection = document.createElement("div");
-              potentialMentionsSection.id = 'potentialMentions';
-              potentialMentionsSection.textContent = "Potential mentions";
-              potentialMentionsSection.className = unlinkedHeaderEl.className;
-              unlinkedHeaderEl.parentNode.appendChild(potentialMentionsSection);
+          // // Find the unlinkedHeaderEl in the backlink object
+          // const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
+          // if (unlinkedHeaderEl) {
+          //   // Check if a "potential mentions" section already exists
+          //   const parentNode = unlinkedHeaderEl.parentNode;
+          //   if (parentNode) {
+          //     const existingSection = Array.from(parentNode.children).find((child: HTMLElement) => child.id === 'potentialMentions');
+          //     if (existingSection) {
+          //       // If it does, remove it
+          //       if (existingSection.parentNode) {
+          //         existingSection.parentNode.removeChild(existingSection);
+          //       }
+          //     }
+          //     const existingLines = Array.from(parentNode.children).filter((child: HTMLElement) => child.id === 'potentialMentionLine');
+          //     for (const line of existingLines) {
+          //       if (line.parentNode) {
+          //         line.parentNode.removeChild(line);
+          //       }
+          //     }
+          //     // Create a new section for "potential mentions"
+          //     const potentialMentionsSection = document.createElement("div");
+          //     potentialMentionsSection.id = 'potentialMentions';
+          //     potentialMentionsSection.textContent = "Potential mentions";
+          //     potentialMentionsSection.className = unlinkedHeaderEl.className;
+          //     unlinkedHeaderEl.parentNode.appendChild(potentialMentionsSection);
 
-              // Process each line individually
-              for (const line of lines) {
-                // Parse the line to extract the path, basename, and content
-                const [filePath, content] = line.split(":");
-                // const pathParts = filePath.split("/");
-                // const basenameOfContent = pathParts[pathParts.length - 1];
-                const tfile: any = this.plugin.app.vault.getAbstractFileByPath(filePath);
-                if (tfile == null) {
-                  continue;
-                }
+          //     // Process each line individually
+          //     for (const line of lines) {
+          //       // Parse the line to extract the path, basename, and content
+          //       const [filePath, content] = line.split(":");
+          //       // const pathParts = filePath.split("/");
+          //       // const basenameOfContent = pathParts[pathParts.length - 1];
+          //       const tfile: any = this.plugin.app.vault.getAbstractFileByPath(filePath);
+          //       if (tfile == null) {
+          //         continue;
+          //       }
 
-                // Create a new child element for the line
-                const lineElement = document.createElement("div");
-                lineElement.textContent = line;
-                lineElement.id = 'potentialMentionLine';
-                lineElement.className = unlinkedHeaderEl.className;
-                lineElement.addEventListener("click", async () => {
-                  const activeLeaf: WorkspaceLeaf = this.plugin.app.workspace.getLeaf();
+          //       // Create a new child element for the line
+          //       const lineElement = document.createElement("div");
+          //       lineElement.textContent = line;
+          //       lineElement.id = 'potentialMentionLine';
+          //       lineElement.className = unlinkedHeaderEl.className;
+          //       lineElement.addEventListener("click", async () => {
+          //         const activeLeaf: WorkspaceLeaf = this.plugin.app.workspace.getLeaf();
 
-                  const fileText: string = await this.plugin.app.vault.read(tfile);
-                  //find start index of card
-                  const startIndex = fileText.search(this.escapeRegExp(content.trim()));
-                  if (startIndex != -1) {
-                      const n = {
-                          match: {
-                              content: fileText,
-                              matches: [[startIndex, startIndex + content.length]],
-                          },
-                      };
-                      // activeLeaf.openFile(tfile, {
-                      //     active: true,
-                      //     eState: n,
-                      // });
-                      this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
-                        active: true,
-                        eState: n,
-                      });
-                      // openFileAndScrollToText(tfile.basename, line);
-                  } 
-                  else {
-                    this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
-                      active: true,
-                    });
-                    // await activeLeaf.openFile(tfile);
-                    // const activeView: MarkdownView =
-                    //     this.app.workspace.getActiveViewOfType(MarkdownView);
-                    // activeView.editor.setCursor({
-                    //     line: this.currentCard.lineNo,
-                    //     ch: 0,
-                    // });
-                    // activeView.editor.scrollTo(this.currentCard.lineNo, 0);
-                }
-              });
-                // Add the child element to the "potential mentions" section
-                unlinkedHeaderEl.parentNode.appendChild(lineElement);
-              }
+          //         const fileText: string = await this.plugin.app.vault.read(tfile);
+          //         //find start index of card
+          //         const startIndex = fileText.search(this.escapeRegExp(content.trim()));
+          //         if (startIndex != -1) {
+          //             const n = {
+          //                 match: {
+          //                     content: fileText,
+          //                     matches: [[startIndex, startIndex + content.length]],
+          //                 },
+          //             };
+          //             // activeLeaf.openFile(tfile, {
+          //             //     active: true,
+          //             //     eState: n,
+          //             // });
+          //             this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
+          //               active: true,
+          //               eState: n,
+          //             });
+          //             // openFileAndScrollToText(tfile.basename, line);
+          //         } 
+          //         else {
+          //           this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
+          //             active: true,
+          //           });
+          //           // await activeLeaf.openFile(tfile);
+          //           // const activeView: MarkdownView =
+          //           //     this.app.workspace.getActiveViewOfType(MarkdownView);
+          //           // activeView.editor.setCursor({
+          //           //     line: this.currentCard.lineNo,
+          //           //     ch: 0,
+          //           // });
+          //           // activeView.editor.scrollTo(this.currentCard.lineNo, 0);
+          //       }
+          //     });
+          //       // Add the child element to the "potential mentions" section
+          //       unlinkedHeaderEl.parentNode.appendChild(lineElement);
+          //     }
 
-            }
-          }
+          //   }
+          // }
 
         } catch (error) {
           patcher.reportError(
