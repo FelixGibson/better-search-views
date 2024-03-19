@@ -123,7 +123,7 @@ export class Patcher {
     return aliasLines;
   }
   // Call `associatedFromCoze`, use `executeCommand` with its result, update UI asynchronously
-  useKeywordsAndUpdateUI(query: string, option: any, originBasename: string, aliases: string[], backlink: any) {
+  useKeywordsAndUpdateUI(query: string, option: any, basename: string, aliases: string[], backlink: any) {
     associatedFromCoze(query).then(response => {
       const jsonObject = JSON.parse(response);
         // Assuming response is already parsed JSON as your structure
@@ -134,10 +134,10 @@ export class Patcher {
 
         // Call your executeCommand with this command string and handle it as a promise
         const commandResult = this.executeCommand(commandFromKeywords, option);
-        const lines = commandResult.split("\n");
+        let lines = commandResult.split("\n");
         // Here you would filter lines or any other processing you originally did
         // ...
-
+        lines = this.preprocessLines(lines, basename, aliases);
         // Now update the UI
         this.updateUIWithLines(lines, backlink, 'Keywords mentions');
 
@@ -214,6 +214,24 @@ export class Patcher {
         parentNode.appendChild(div);
       }
     }
+  }
+
+  preprocessLines(lines: string[], basename: string, aliases: string[]): string[] {
+    // Convert basename and aliases to lowercase for case-insensitive comparison
+    const basenameLower = basename.toLowerCase();
+    let aliasesLower: string[] = [];
+    if (aliases) {
+      aliasesLower = aliases.map(alias => alias.toLowerCase());
+    }
+    lines = lines.filter(line => {
+      const lineLower = line.toLowerCase();
+      // Check if line contains basename or any alias
+      if (lineLower.includes(basenameLower) || (aliasesLower && aliasesLower.some(alias => lineLower.includes(alias)))) {
+        return false; // If it does, exclude it from the new array
+      }
+      return true; // If it doesn't, include it in the new array
+    });
+    return lines;
   }
 
   patchComponent() {
@@ -311,20 +329,7 @@ export class Patcher {
           // lines.push(...associatedSentenceResult.split("\n"));
 
           lines = Array.from(new Set(lines));
-          // Convert basename and aliases to lowercase for case-insensitive comparison
-          const basenameLower = basename.toLowerCase();
-          let aliasesLower: string[] = [];
-          if (aliases) {
-            aliasesLower = aliases.map(alias => alias.toLowerCase());
-          }
-          lines = lines.filter(line => {
-            const lineLower = line.toLowerCase();
-            // Check if line contains basename or any alias
-            if (lineLower.includes(basenameLower) || (aliasesLower && aliasesLower.some(alias => lineLower.includes(alias)))) {
-              return false; // If it does, exclude it from the new array
-            }
-            return true; // If it doesn't, include it in the new array
-          });
+          lines = this.preprocessLines(lines, basename, aliases);
 
           this.updateUIWithLines(lines, backlink, 'Potential mentions');
 
