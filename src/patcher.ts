@@ -44,7 +44,7 @@ async function associatedFromCoze(query: string): Promise<string> {
       return response.data.messages[0].content;
     }
 
-    
+
   } catch (error) {
     console.error('Error fetching content from Coze:', error);
   }
@@ -57,7 +57,7 @@ async function associatedFromCoze(query: string): Promise<string> {
 //   // Create a search cursor that finds the text in the document
 //   let cursor = editor.getSearchCursor(text);
 //   let found = cursor.findNext();
-  
+
 //   if (found) {
 //     // If the text was found, scroll to the text's position
 //     editor.scrollIntoView({ from: cursor.from(), to: cursor.to() }, 200);
@@ -71,12 +71,12 @@ async function associatedFromCoze(query: string): Promise<string> {
 // async function openFileAndScrollToText(filePath, searchText) {
 //   // Open the file
 //   await app.workspace.openLinkText(filePath, '', true);
-  
+
 //   // Get the active view
 //   let activeLeaf = app.workspace.activeLeaf;
 //   if (activeLeaf) {
 //     let markdownView = activeLeaf.view;
-    
+
 //     if (markdownView instanceof obsidian.MarkdownView) {
 //       // Wait for the editor to be ready if needed
 //       setTimeout(() => {
@@ -126,39 +126,39 @@ export class Patcher {
   useKeywordsAndUpdateUI(query: string, option: any, basename: string, aliases: string[], backlink: any, existingLines: string[]) {
     associatedFromCoze(query).then(response => {
       const jsonObject = JSON.parse(response);
-        // Assuming response is already parsed JSON as your structure
-        const firstIterationKeywords = jsonObject.iterations[0].keywords;
+      // Assuming response is already parsed JSON as your structure
+      const firstIterationKeywords = jsonObject.iterations[0].keywords;
 
-        // Generate a command or any string from keywords you want to pass to executeCommand
-        const commandFromKeywords = firstIterationKeywords.join(' '); // or any other logic
+      // Generate a command or any string from keywords you want to pass to executeCommand
+      const commandFromKeywords = firstIterationKeywords.join(' '); // or any other logic
 
-        // Call your executeCommand with this command string and handle it as a promise
-        const commandResult = this.executeCommand(commandFromKeywords, option);
-        let lines = commandResult.split("\n");
-        // Here you would filter lines or any other processing you originally did
-        // ...
-        lines = this.preprocessLines(lines, basename, aliases, existingLines);
-        // Now update the UI
-        this.updateUIWithLines(lines, backlink, 'Keywords mentions');
+      // Call your executeCommand with this command string and handle it as a promise
+      const commandResult = this.executeCommand(commandFromKeywords, option);
+      let lines = commandResult.split("\n");
+      // Here you would filter lines or any other processing you originally did
+      // ...
+      lines = this.preprocessLines(lines, basename, aliases, existingLines);
+      // Now update the UI
+      this.updateUIWithLines(lines, backlink, 'Keywords mentions');
 
 
-        const secondtranslatedKeywords = jsonObject.iterations[0].translatedKeywords;
+      const secondtranslatedKeywords = jsonObject.iterations[0].translatedKeywords;
 
-        // Generate a command or any string from keywords you want to pass to executeCommand
-        const second = secondtranslatedKeywords.join(' '); // or any other logic
+      // Generate a command or any string from keywords you want to pass to executeCommand
+      const second = secondtranslatedKeywords.join(' '); // or any other logic
 
-        // Call your executeCommand with this command string and handle it as a promise
-        const result = this.executeCommand(second, option);
-        let secondLines = result.split("\n");
-        // Here you would filter lines or any other processing you originally did
-        // ...
-        secondLines = this.preprocessLines(secondLines, basename, aliases, existingLines);
-        // Now update the UI
-        this.updateUIWithLines(secondLines, backlink, 'Translated Keywords mentions');
+      // Call your executeCommand with this command string and handle it as a promise
+      const result = this.executeCommand(second, option);
+      let secondLines = result.split("\n");
+      // Here you would filter lines or any other processing you originally did
+      // ...
+      secondLines = this.preprocessLines(secondLines, basename, aliases, existingLines);
+      // Now update the UI
+      this.updateUIWithLines(secondLines, backlink, 'Translated Keywords mentions');
 
 
     }).catch(error => {
-        console.error('Error fetching content from Coze: ', error);
+      console.error('Error fetching content from Coze: ', error);
     });
   }
 
@@ -198,24 +198,24 @@ export class Patcher {
             //find start index of card
             const startIndex = fileText.search(this.escapeRegExp(content.trim()));
             if (startIndex != -1) {
-                const n = {
-                    match: {
-                        content: fileText,
-                        matches: [[startIndex, startIndex + content.length]],
-                    },
-                };
-                this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
-                  active: true,
-                  eState: n,
-                });
-                // openFileAndScrollToText(tfile.basename, line);
-            } 
+              const n = {
+                match: {
+                  content: fileText,
+                  matches: [[startIndex, startIndex + content.length]],
+                },
+              };
+              this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
+                active: true,
+                eState: n,
+              });
+              // openFileAndScrollToText(tfile.basename, line);
+            }
             else {
               this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
                 active: true,
               });
-          }
-        });
+            }
+          });
           // Add the child element to the "potential mentions" section
           div.appendChild(lineElement);
         }
@@ -276,7 +276,7 @@ export class Patcher {
       }),
     );
 
-    
+
 
     // this.plugin.app.workspace.onLayoutReady(() => {
     //   const activeEditor: any = this.plugin.app.workspace.activeEditor;
@@ -304,14 +304,14 @@ export class Patcher {
           let adapter: any = this.plugin.app.vault.adapter;
           const pathToFzf = '/opt/homebrew/bin'; // Replace with the actual path to fzf
           const modifiedPath = `${process.env.PATH}:${pathToFzf}`;
-          
+
           const options = {
-              env: {
-                  ...process.env,
-                  PATH: modifiedPath,
-              },
-              cwd: adapter.getBasePath(),
-              maxBuffer: 10 * 1024 * 1024 // Increase buffer to 10MB
+            env: {
+              ...process.env,
+              PATH: modifiedPath,
+            },
+            cwd: adapter.getBasePath(),
+            maxBuffer: 10 * 1024 * 1024 // Increase buffer to 10MB
           };
 
 
@@ -341,7 +341,7 @@ export class Patcher {
           // call associatedFromCoze
           // const associatedSentenceResult = this.executeCommand(, options);
 
-          
+
           // lines.push(...associatedSentenceResult.split("\n"));
 
           lines = Array.from(new Set(lines));
@@ -485,7 +485,7 @@ export class Patcher {
   addSpacesToText(text: string): string {
     // Match Chinese characters and English words separately
     const matches = text.match(/[\u4e00-\u9fff]|[\w']+/g);
-  
+
     if (matches) {
       // Add "'" before English words and spaces between Chinese characters and English words
       const processedMatches = matches.map(match => {
@@ -498,7 +498,7 @@ export class Patcher {
           return match;
         }
       });
-  
+
       return processedMatches.join(' ');
     } else {
       // If no matches, return the original text
