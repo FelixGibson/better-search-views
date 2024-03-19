@@ -179,6 +179,9 @@ export class Patcher {
     const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
     const div = document.createElement("div");
     div.id = type;
+    if (unlinkedHeaderEl && unlinkedHeaderEl.parentElement) {
+      div.className = unlinkedHeaderEl.parentElement.className;
+    }
     if (unlinkedHeaderEl) {
       // Check if a "potential mentions" section already exists
       const parentNode = unlinkedHeaderEl.parentNode;
