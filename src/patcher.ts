@@ -72,15 +72,20 @@ export class Patcher {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
   }
 
-  executeCommand(highlightsString: string, options: any) {
+  preprocess(highlightsString: string) {
     const regex = /[^a-zA-Z0-9\s\u4e00-\u9fa5]/g;
-    highlightsString = highlightsString.replace(regex, '');
+    highlightsString = highlightsString.replace(regex, ' ');
+    return highlightsString;
+  }
+
+  executeCommand(highlightsString: string, options: any) {
     return execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString().trim();
   }
 
   getAliasLines(aliases: any, options: any) {
     const aliasLines = [];
-    for (const alias of aliases) {
+    for (let alias of aliases) {
+      alias = this.preprocess(alias);
       const aliasHighlightsString = this.addSpacesToText(alias);
       const aliasStdout = this.executeCommand(aliasHighlightsString, options);
       aliasLines.push(...aliasStdout.split("\n"));
@@ -129,7 +134,8 @@ export class Patcher {
       const file = this.plugin.app.workspace.getActiveFile();
       const basename = file?.basename ?? "";
       if (backlink != null) {
-        const highlightsString = patcher.addSpacesToText(basename);
+        let highlightsString = this.preprocess(basename);
+        highlightsString = patcher.addSpacesToText(basename);
         // backlink.unlinkedCollapsed = false;
         if (backlink.unlinkedCollapsed == true) {
           backlink.unlinkedHeaderEl.click();
