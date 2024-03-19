@@ -124,41 +124,53 @@ export class Patcher {
   }
   // Call `associatedFromCoze`, use `executeCommand` with its result, update UI asynchronously
   useKeywordsAndUpdateUI(query: string, option: any, basename: string, aliases: string[], backlink: any, existingLines: string[]) {
-    associatedFromCoze(query).then(response => {
+    associatedFromCoze(query).catch(error => {
+      this.reportError(
+        error,
+        "Error while query coze",
+      );
+      return "";
+    }).then(response => {
+      if (response == "") {
+        return;
+      }
+      console.log("response is " + response);
       const jsonObject = JSON.parse(response);
       // Assuming response is already parsed JSON as your structure
-      const firstIterationKeywords = jsonObject.iterations[0].keywords;
-
-      // Generate a command or any string from keywords you want to pass to executeCommand
-      const commandFromKeywords = firstIterationKeywords.join(' '); // or any other logic
-
-      // Call your executeCommand with this command string and handle it as a promise
-      const commandResult = this.executeCommand(commandFromKeywords, option);
-      let lines = commandResult.split("\n");
-      // Here you would filter lines or any other processing you originally did
-      // ...
-      lines = this.preprocessLines(lines, basename, aliases, existingLines);
-      // Now update the UI
-      this.updateUIWithLines(lines, backlink, 'Keywords mentions');
-
-
-      const secondtranslatedKeywords = jsonObject.iterations[0].translatedKeywords;
-
-      // Generate a command or any string from keywords you want to pass to executeCommand
-      const second = secondtranslatedKeywords.join(' '); // or any other logic
-
-      // Call your executeCommand with this command string and handle it as a promise
-      const result = this.executeCommand(second, option);
-      let secondLines = result.split("\n");
-      // Here you would filter lines or any other processing you originally did
-      // ...
-      secondLines = this.preprocessLines(secondLines, basename, aliases, existingLines);
-      // Now update the UI
-      this.updateUIWithLines(secondLines, backlink, 'Translated Keywords mentions');
+      const keywords = jsonObject.iterations[0].keywords;
+      const translatedKeywords = jsonObject.iterations[0].translatedKeywords;
+      const keywordsSet = [keywords, translatedKeywords]
+      for (const each of keywordsSet) {
+        // Generate a command or any string from keywords you want to pass to executeCommand
+        const originCommandFromKeywords = each.join(' '); // or any other logic
+        let commandFromKeywords = this.preprocess(originCommandFromKeywords);
+        commandFromKeywords = this.addSpacesToText(commandFromKeywords);
+        // Call your executeCommand with this command string and handle it as a promise
+        const commandResult = this.executeCommand(commandFromKeywords, option);
+        let lines = commandResult.split("\n");
+        // Here you would filter lines or any other processing you originally did
+        // ...
+        lines = this.preprocessLines(lines, basename, aliases, existingLines);
+        // Now update the UI
+        this.updateUIWithLines(lines, backlink, 'Potential mentions: ' + originCommandFromKeywords);
+      }
 
 
-    }).catch(error => {
-      console.error('Error fetching content from Coze: ', error);
+      // const secondtranslatedKeywords = jsonObject.iterations[0].translatedKeywords;
+
+      // // Generate a command or any string from keywords you want to pass to executeCommand
+      // const second = secondtranslatedKeywords.join(' '); // or any other logic
+
+      // // Call your executeCommand with this command string and handle it as a promise
+      // const result = this.executeCommand(second, option);
+      // let secondLines = result.split("\n");
+      // // Here you would filter lines or any other processing you originally did
+      // // ...
+      // secondLines = this.preprocessLines(secondLines, basename, aliases, existingLines);
+      // // Now update the UI
+      // this.updateUIWithLines(secondLines, backlink, 'Translated Keywords mentions');
+
+
     });
   }
 
@@ -291,8 +303,7 @@ export class Patcher {
       const file = this.plugin.app.workspace.getActiveFile();
       const basename = file?.basename ?? "";
       if (backlink != null) {
-        let highlightsString = this.preprocess(basename);
-        highlightsString = patcher.addSpacesToText(basename);
+
         // backlink.unlinkedCollapsed = false;
         if (backlink.unlinkedCollapsed == true) {
           backlink.unlinkedHeaderEl.click();
@@ -315,7 +326,8 @@ export class Patcher {
           };
 
 
-
+          let highlightsString = this.preprocess(basename);
+          highlightsString = patcher.addSpacesToText(highlightsString);
           const stdout = this.executeCommand(highlightsString, options);
           let lines = stdout.split("\n");
 
