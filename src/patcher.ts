@@ -307,6 +307,9 @@ export class Patcher {
     this.plugin.app.workspace.on('active-leaf-change', () => {
       this.cancelTokenSource.cancel('Operation canceled due to active leaf change.');
       this.cancelTokenSource = axios.CancelToken.source();
+
+
+
       const activeEditor: any = this.plugin.app.workspace.activeEditor;
       const backlink = activeEditor?.backlinks;
       const file = this.plugin.app.workspace.getActiveFile();
@@ -320,6 +323,15 @@ export class Patcher {
         if (backlink.extraContext == false) {
           backlink.extraContextButtonEl.click();
         }
+
+        const parentNode = backlink.unlinkedHeaderEl.parentNode;
+        let existingSection;
+        while ((existingSection = Array.from(parentNode.children).find((child: HTMLElement) => child.id.startsWith('Potential mentions')))) {
+          // get the index
+          parentNode.removeChild(existingSection);
+        }
+
+
         try {
           let adapter: any = this.plugin.app.vault.adapter;
           const pathToFzf = '/opt/homebrew/bin'; // Replace with the actual path to fzf
