@@ -123,7 +123,7 @@ export class Patcher {
     return aliasLines;
   }
   // Call `associatedFromCoze`, use `executeCommand` with its result, update UI asynchronously
-  useKeywordsAndUpdateUI(query: string, option: any, basename: string, aliases: string[], backlink: any) {
+  useKeywordsAndUpdateUI(query: string, option: any, basename: string, aliases: string[], backlink: any, existingLines: string[]) {
     associatedFromCoze(query).then(response => {
       const jsonObject = JSON.parse(response);
         // Assuming response is already parsed JSON as your structure
@@ -137,7 +137,7 @@ export class Patcher {
         let lines = commandResult.split("\n");
         // Here you would filter lines or any other processing you originally did
         // ...
-        lines = this.preprocessLines(lines, basename, aliases);
+        lines = this.preprocessLines(lines, basename, aliases, existingLines);
         // Now update the UI
         this.updateUIWithLines(lines, backlink, 'Keywords mentions');
 
@@ -216,7 +216,7 @@ export class Patcher {
     }
   }
 
-  preprocessLines(lines: string[], basename: string, aliases: string[]): string[] {
+  preprocessLines(lines: string[], basename: string, aliases: string[], existingLines: string[] = []): string[] {
     // Convert basename and aliases to lowercase for case-insensitive comparison
     const basenameLower = basename.toLowerCase();
     let aliasesLower: string[] = [];
@@ -226,7 +226,7 @@ export class Patcher {
     lines = lines.filter(line => {
       const lineLower = line.toLowerCase();
       // Check if line contains basename or any alias
-      if (lineLower.includes(basenameLower) || (aliasesLower && aliasesLower.some(alias => lineLower.includes(alias)))) {
+      if (lineLower.includes(basenameLower) || (aliasesLower && aliasesLower.some(alias => lineLower.includes(alias)) || (existingLines && existingLines.some(t => lineLower.includes(t))))) {
         return false; // If it does, exclude it from the new array
       }
       return true; // If it doesn't, include it in the new array
@@ -313,7 +313,7 @@ export class Patcher {
             }
           }
 
-          this.useKeywordsAndUpdateUI(highlightsString, options, basename, aliases, backlink);
+          this.useKeywordsAndUpdateUI(highlightsString, options, basename, aliases, backlink, lines);
 
 
           // // Usage example, catching error in usage as function is now async and may throw
