@@ -73,6 +73,8 @@ export class Patcher {
   }
 
   executeCommand(highlightsString: string, options: any) {
+    const regex = /[^a-zA-Z0-9\s\u4e00-\u9fa5]/g;
+    highlightsString = highlightsString.replace(regex, '');
     return execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString().trim();
   }
 
