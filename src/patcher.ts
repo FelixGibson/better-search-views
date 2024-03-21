@@ -156,17 +156,17 @@ export class Patcher {
         // ...
         lines = this.preprocessLines(lines, basename, aliases, existingLines);
         // Now update the UI
-        this.updateUIWithLines(lines, backlink, 'Potential mentions: ' + originCommandFromKeywords);
+        this.updateUIWithLines(lines, backlink, 'Potential mentions: ' + originCommandFromKeywords, basename);
       }
 
     });
   }
 
-  updateUIWithLines(lines: string[], backlink: any, type: string) {
+  updateUIWithLines(lines: string[], backlink: any, type: string, filename: string) {
     // Find the unlinkedHeaderEl in the backlink object
     const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
     const div = document.createElement("div");
-    div.id = type;
+    div.id = type + filename;
     if (unlinkedHeaderEl && unlinkedHeaderEl.parentElement) {
       div.className = unlinkedHeaderEl.parentElement.className;
     }
@@ -325,8 +325,13 @@ export class Patcher {
         }
 
         const parentNode = backlink.unlinkedHeaderEl.parentNode;
-        if ((undefined != Array.from(parentNode.children).find((child: HTMLElement) => child.id.startsWith('Potential mentions')))) {
+        if ((undefined != Array.from(parentNode.children).find((child: HTMLElement) => child.id.startsWith('Potential mentions') && child.id.contains(basename)))) {
           return ;
+        }
+        let existingSection;
+        while ((existingSection = Array.from(parentNode.children).find((child: HTMLElement) => child.id.startsWith('Potential mentions')))) {
+          // get the index
+          parentNode.removeChild(existingSection);
         }
 
 
@@ -364,7 +369,7 @@ export class Patcher {
           lines = Array.from(new Set(lines));
           lines = this.preprocessLines(lines, basename, aliases);
 
-          this.updateUIWithLines(lines, backlink, 'Potential mentions');
+          this.updateUIWithLines(lines, backlink, 'Potential mentions', basename);
 
 
         } catch (error) {
