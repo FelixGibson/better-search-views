@@ -325,10 +325,8 @@ export class Patcher {
         }
 
         const parentNode = backlink.unlinkedHeaderEl.parentNode;
-        let existingSection;
-        while ((existingSection = Array.from(parentNode.children).find((child: HTMLElement) => child.id.startsWith('Potential mentions')))) {
-          // get the index
-          parentNode.removeChild(existingSection);
+        if ((undefined != Array.from(parentNode.children).find((child: HTMLElement) => child.id.startsWith('Potential mentions')))) {
+          return ;
         }
 
 
