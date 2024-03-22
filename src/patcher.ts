@@ -85,7 +85,13 @@ export class Patcher {
   }
 
   executeCommand(highlightsString: string, options: any) {
-    return execSync(`grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`, options).toString().trim();
+    const cmd = `grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`;
+    try {
+      return execSync(cmd, options).toString().trim();
+    } catch (error) {
+      console.error('Error execute Command', cmd);
+    }
+    return "";
   }
 
   getAliasLines(aliases: any, options: any) {
