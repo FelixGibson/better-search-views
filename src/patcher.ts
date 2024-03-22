@@ -102,13 +102,13 @@ export class Patcher {
   async associatedFromCoze(query: string): Promise<string> {
     try {
       const response = await axios.post('https://api.coze.com/open_api/v2/chat', {
-        bot_id: "7347974486534356999",
+        bot_id: "7347973296270802962",
         user: "29032201862555",
         query: query,
         stream: false
       }, {
         headers: {
-          'Authorization': 'Bearer BkcTIVOBBDzNk6nstThfmzBsSZ836V0U0WCnWsJmGdYcm0PlQFozxzbcIcWYJuN2',
+          'Authorization': 'Bearer sgFk2tyDFgrUsIdQDOMhQ5Fc4jx1Rtz8AaTnQfi17mfomr38Z2Wy63FoG9xRmRR1',
           'Content-Type': 'application/json',
           'Accept': '*/*'
         },
