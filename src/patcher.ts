@@ -134,7 +134,7 @@ export class Patcher {
   }
   // Call `associatedFromCoze`, use `executeCommand` with its result, update UI asynchronously
   useKeywordsAndUpdateUI(query: string, option: any, basename: string, aliases: string[], backlink: any, existingLines: string[]) {
-    this.associatedFromCoze(query).catch(error => {
+    this.associatedFromCoze(basename).catch(error => {
       this.reportError(
         error,
         "Error while query coze",
