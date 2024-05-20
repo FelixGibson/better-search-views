@@ -1,4 +1,4 @@
-import { Component, LinkCache, Notice, TAbstractFile, TFile, WorkspaceLeaf } from "obsidian";
+import { Component, LinkCache, Notice, Platform, TAbstractFile, TFile, WorkspaceLeaf } from "obsidian";
 import { around } from "monkey-around";
 import { createPositionFromOffsets } from "./metadata-cache-util/position";
 import { createContextTree } from "./context-tree/create/create-context-tree";
@@ -379,10 +379,12 @@ export class Patcher {
 
 
         } catch (error) {
-          patcher.reportError(
-            error,
-            `Failed to execute grep and fzf command for file path: ${basename}`,
-          );
+          if (!Platform.isMobile) {
+            patcher.reportError(
+              error,
+              `Failed to execute grep and fzf command for file path: ${basename}`,
+            );
+          }
         }
       }
 
