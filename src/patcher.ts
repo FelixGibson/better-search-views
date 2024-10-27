@@ -169,6 +169,7 @@ export class Patcher {
   }
 
   updateUIWithLines(lines: string[], backlink: any, type: string, filename: string) {
+    lines = lines.sort();
     // Find the unlinkedHeaderEl in the backlink object
     const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
     const div = document.createElement("div");
