@@ -185,3 +185,18 @@ body:not(.is-grabbing)
 .highlight {
   background-color: yellow;
 }
+
+/* CSS for the title and content */
+.file-path {
+  font-size: 1.2em; /* Larger font size for the title */
+  display: block; /* Ensure it takes up a full line */
+}
+
+.content {
+  border: 1px solid #ccc; /* Border around the content */
+  padding: 5px; /* Padding inside the content */
+  display: block; /* Ensure it takes up a full line */
+  font-size: 1em; /* Smaller font size for the content */
+  color: #666; /* Lighter text color for the content */
+  background-color: #f9f9f9; /* Light background color for better readability */
+}

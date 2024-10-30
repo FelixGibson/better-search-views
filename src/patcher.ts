@@ -228,7 +228,7 @@ export class Patcher {
     const div = document.createElement("div");
     div.id = type + filename;
     if (unlinkedHeaderEl && unlinkedHeaderEl.parentElement) {
-      div.className = unlinkedHeaderEl.parentElement.className;
+      // div.className = unlinkedHeaderEl.parentElement.className;
     }
     if (unlinkedHeaderEl) {
       // Check if a "potential mentions" section already exists
@@ -238,7 +238,7 @@ export class Patcher {
         const section = document.createElement("div");
         section.id = type;
         section.textContent = type;
-        section.className = unlinkedHeaderEl.className;
+        // section.className = unlinkedHeaderEl.className;
         div.appendChild(section);
   
         const sectionForLines = document.createElement("div");
@@ -255,10 +255,10 @@ export class Patcher {
   
           // Create a new child element for the line
           const lineElement = document.createElement("div");
-          lineElement.className = unlinkedHeaderEl.className;
+          // lineElement.className = unlinkedHeaderEl.className;
 
           // Create a separate element for the file path
-          const filePathElement = document.createElement("h3");
+          const filePathElement = document.createElement("span");
           filePathElement.className = "file-path";
           filePathElement.textContent = filePath;
           filePathElement.title = filePath; // Set the file path as the title attribute
@@ -272,8 +272,8 @@ export class Patcher {
           // Append both elements to the lineElement
           lineElement.appendChild(filePathElement);
                   // Add a line break for separation
-        const br = document.createElement("br");
-        lineElement.appendChild(br);
+        // const br = document.createElement("br");
+        // lineElement.appendChild(br);
           lineElement.appendChild(contentElement);
   
           lineElement.addEventListener("click", async () => {
