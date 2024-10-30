@@ -9,6 +9,8 @@ import { DisposerRegistry } from "./disposer-registry";
 import { dedupeMatches } from "./context-tree/dedupe/dedupe-matches";
 import { exec, execSync } from "child_process";
 import axios from "axios";
+import Fuse from 'fuse.js'
+
 
 const errorTimeout = 10000;
 
@@ -79,19 +81,39 @@ export class Patcher {
   }
 
   preprocess(highlightsString: string) {
-    const regex = /[^a-zA-Z0-9\s\u4e00-\u9fa5]/g;
-    highlightsString = highlightsString.replace(regex, ' ');
+    // const regex = /[^a-zA-Z0-9\s\u4e00-\u9fa5]/g;
+    // highlightsString = highlightsString.replace(regex, ' ');
     return highlightsString;
   }
 
-  executeCommand(highlightsString: string, options: any) {
-    const cmd = `grep --line-buffered --color=never -r "" * | fzf --filter="${highlightsString}"`;
-    try {
-      return execSync(cmd, options).toString().trim();
-    } catch (error) {
-      console.error('Error execute Command', cmd);
-    }
-    return "";
+  findPotentialBackLinks(highlightsString: string, placeHolder: any) {
+    const notes: TFile[] = this.plugin.app.vault.getMarkdownFiles();
+    // const searchResults: { note: TFile; line: string; matchScore: number }[] = [];
+    const searchResults: string[] = [];
+    const promises = notes.map(async (note) => {
+      const fileText: string = await this.plugin.app.vault.read(note);
+      const lines = fileText.split('\n');
+  
+      const fuse = new Fuse(lines, { includeScore: true, threshold: 0.4 });
+  
+      const results = fuse.search(highlightsString);
+      results.forEach(result => {
+        // searchResults.push({
+        //   note: note,
+        //   line: result.item,
+        //   matchScore: result.score ?? 0,
+        // });
+        searchResults.push(note.path + ":" + result.item)
+      });
+    });
+  
+    // Wait for all promises to resolve
+    Promise.all(promises).then(() => {
+      // Process searchResults here if needed
+      console.log(searchResults);
+    });
+  
+    return searchResults.join("\n");
   }
 
   getAliasLines(aliases: any, options: any) {
@@ -99,7 +121,7 @@ export class Patcher {
     for (let alias of aliases) {
       alias = this.preprocess(alias);
       const aliasHighlightsString = this.addSpacesToText(alias);
-      const aliasStdout = this.executeCommand(aliasHighlightsString, options);
+      const aliasStdout = this.findPotentialBackLinks(aliasHighlightsString, options);
       aliasLines.push(...aliasStdout.split("\n"));
     }
     return aliasLines;
@@ -132,7 +154,7 @@ export class Patcher {
     }
     return "";
   }
-  // Call `associatedFromCoze`, use `executeCommand` with its result, update UI asynchronously
+  // Call `associatedFromCoze`, use `findPotentialBackLinks` with its result, update UI asynchronously
   useKeywordsAndUpdateUI(query: string, option: any, basename: string, aliases: string[], backlink: any, existingLines: string[]) {
     this.associatedFromCoze(basename).catch(error => {
       this.reportError(
@@ -151,12 +173,12 @@ export class Patcher {
       const translatedKeywords = jsonObject.iterations[0].translatedKeywords;
       const keywordsSet = [keywords, translatedKeywords]
       for (const each of keywordsSet) {
-        // Generate a command or any string from keywords you want to pass to executeCommand
+        // Generate a command or any string from keywords you want to pass to findPotentialBackLinks
         const originCommandFromKeywords = each.join(' '); // or any other logic
         let commandFromKeywords = this.preprocess(originCommandFromKeywords);
         commandFromKeywords = this.addSpacesToText(commandFromKeywords);
-        // Call your executeCommand with this command string and handle it as a promise
-        const commandResult = this.executeCommand(commandFromKeywords, option);
+        // Call your findPotentialBackLinks with this command string and handle it as a promise
+        const commandResult = this.findPotentialBackLinks(commandFromKeywords, option);
         let lines = commandResult.split("\n");
         // Here you would filter lines or any other processing you originally did
         // ...
@@ -359,7 +381,7 @@ export class Patcher {
 
           let highlightsString = this.preprocess(basename);
           highlightsString = patcher.addSpacesToText(highlightsString);
-          const stdout = this.executeCommand(highlightsString, options);
+          const stdout = this.findPotentialBackLinks(highlightsString, options);
           let lines = stdout.split("\n");
 
           const aimFile: TFile | null | undefined = this.plugin.app.workspace.activeEditor?.file;
