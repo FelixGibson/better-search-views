@@ -209,12 +209,14 @@ export class Patcher {
 
     indices.sort((a, b) => a[0] - b[0]); // Sort indices by start position
 
-    for (const [start, end] of indices) {
+    for (let [start, end] of indices) {
       highlightedLine += line.slice(lastIndex, start);
+      end = end + 1;
       highlightedLine += `<span class="highlight">${line.slice(start, end)}</span>`;
       lastIndex = end;
     }
 
+    // Add the remaining part of the line after the last highlighted segment
     highlightedLine += line.slice(lastIndex);
 
     return highlightedLine;
