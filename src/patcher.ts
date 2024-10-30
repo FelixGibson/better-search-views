@@ -225,6 +225,7 @@ export class Patcher {
   }
 
   async updateUIWithLines(searchMatches: SearchMatch[], backlink: any, type: string, filename: string) {
+    searchMatches.sort((a, b) => b.score - a.score);
     // Find the unlinkedHeaderEl in the backlink object
     const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
     const div = document.createElement("div");
