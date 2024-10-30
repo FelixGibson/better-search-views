@@ -220,7 +220,7 @@ export class Patcher {
     return highlightedLine;
   }
 
-  updateUIWithLines(searchMatches: SearchMatch[], backlink: any, type: string, filename: string) {
+  async updateUIWithLines(searchMatches: SearchMatch[], backlink: any, type: string, filename: string) {
     // Find the unlinkedHeaderEl in the backlink object
     const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
     const div = document.createElement("div");
@@ -238,12 +238,9 @@ export class Patcher {
         section.textContent = type;
         section.className = unlinkedHeaderEl.className;
         div.appendChild(section);
-
+  
         const sectionForLines = document.createElement("div");
-        // sectionForLines.id = type;
-        // if (unlinkedHeaderEl && unlinkedHeaderEl.parentElement) {
-        //   sectionForLines.className = unlinkedHeaderEl.parentElement.className;
-        // }
+  
         // Process each line individually
         for (const item of searchMatches) {
           // Parse the line to extract the path, basename, and content
@@ -253,17 +250,33 @@ export class Patcher {
           if (tfile == null) {
             continue;
           }
-
+  
           // Create a new child element for the line
           const lineElement = document.createElement("div");
-          lineElement.textContent = item.line;
           lineElement.className = unlinkedHeaderEl.className;
-          // Highlight the matched parts
-          const highlightedLine = this.highlightMatches(content, item.indices);
-          lineElement.innerHTML = highlightedLine;
+
+          // Create a separate element for the file path
+          const filePathElement = document.createElement("h3");
+          filePathElement.className = "file-path";
+          filePathElement.textContent = filePath;
+          filePathElement.title = filePath; // Set the file path as the title attribute
+
+          // Create a separate element for the content
+          const contentElement = document.createElement("span");
+          contentElement.className = "content";
+          const highlightedContent = this.highlightMatches(content, item.indices);
+          contentElement.innerHTML = highlightedContent;
+
+          // Append both elements to the lineElement
+          lineElement.appendChild(filePathElement);
+                  // Add a line break for separation
+        const br = document.createElement("br");
+        lineElement.appendChild(br);
+          lineElement.appendChild(contentElement);
+  
           lineElement.addEventListener("click", async () => {
             const fileText: string = await this.plugin.app.vault.read(tfile);
-            //find start index of card
+            // Find start index of card
             const startIndex = fileText.search(this.escapeRegExp(content.trim()));
             if (startIndex != -1) {
               const n = {
@@ -277,35 +290,34 @@ export class Patcher {
                 eState: n,
               });
               // openFileAndScrollToText(tfile.basename, line);
-            }
-            else {
+            } else {
               this.plugin.app.workspace.openLinkText(tfile.basename, '/', true, {
                 active: true,
               });
             }
           });
+  
           // Add the child element to the "potential mentions" section
           sectionForLines.appendChild(lineElement);
         }
+  
         // Check if a "potential mentions" section already exists
-        const parentNode = unlinkedHeaderEl.parentNode;
         let existingIndex = -1;
-        if (parentNode) {
-          const existingSection = Array.from(parentNode.children).find((child: HTMLElement) => child.id === type);
-          if (existingSection) {
-            // get the index
-            existingIndex = Array.from(parentNode.children).indexOf(existingSection);
-            parentNode.removeChild(existingSection);
-          }
+        const existingSection = Array.from(parentNode.children).find((child: HTMLElement) => child.id === type);
+        if (existingSection) {
+          // Get the index
+          existingIndex = Array.from(parentNode.children).indexOf(existingSection);
+          parentNode.removeChild(existingSection);
         }
-        // add some space between the sections
+  
+        // Add some space between the sections
         div.appendChild(sectionForLines);
-        // insert div to the index
+  
+        // Insert div to the index
         if (existingIndex != -1) {
           parentNode.insertBefore(div, parentNode.children[existingIndex]);
         } else {
           parentNode.appendChild(div);
-
         }
       }
     }
