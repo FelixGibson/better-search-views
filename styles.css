@@ -181,3 +181,7 @@ body:not(.is-grabbing)
 .better-search-views-is-hidden {
   display: none;
 }
+
+.highlight {
+  background-color: yellow;
+}

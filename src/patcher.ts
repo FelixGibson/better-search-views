@@ -9,7 +9,7 @@ import { DisposerRegistry } from "./disposer-registry";
 import { dedupeMatches } from "./context-tree/dedupe/dedupe-matches";
 import { exec, execSync } from "child_process";
 import axios from "axios";
-import Fuse from 'fuse.js'
+import Fuse, { RangeTuple } from 'fuse.js'
 
 
 const errorTimeout = 10000;
@@ -26,6 +26,12 @@ function getHighlightsFromVChild(vChild: any) {
     .replace(wikiLinkBrackets, "");
 }
 
+
+interface SearchMatch {
+  path: string;
+  line: string;
+  indices: number[][];
+}
 
 
 
@@ -85,45 +91,48 @@ export class Patcher {
     // highlightsString = highlightsString.replace(regex, ' ');
     return highlightsString;
   }
+  
 
-  findPotentialBackLinks(highlightsString: string, placeHolder: any) {
+  async findPotentialBackLinks(highlightsString: string, placeHolder: any): Promise<SearchMatch[]> {
     const notes: TFile[] = this.plugin.app.vault.getMarkdownFiles();
-    // const searchResults: { note: TFile; line: string; matchScore: number }[] = [];
-    const searchResults: string[] = [];
-    const promises = notes.map(async (note) => {
+    const searchResults: SearchMatch[] = [];
+  
+    for (const note of notes) {
       const fileText: string = await this.plugin.app.vault.read(note);
       const lines = fileText.split('\n');
   
-      const fuse = new Fuse(lines, { includeScore: true, threshold: 0.4 });
+      const fuse = new Fuse(lines, {
+        includeScore: true,
+        threshold: 0.4,
+        includeMatches: true // Include match indices
+      });
   
       const results = fuse.search(highlightsString);
       results.forEach(result => {
-        // searchResults.push({
-        //   note: note,
-        //   line: result.item,
-        //   matchScore: result.score ?? 0,
-        // });
-        searchResults.push(note.path + ":" + result.item)
+        if (result.matches && result.matches.length > 0) {
+          const indices = result.matches[0].indices.map(range => [...range]); // Create a mutable copy
+          searchResults.push({
+            path: note.path,
+            line: result.item,
+            indices: indices
+          });
+        }
       });
-    });
+    }
   
-    // Wait for all promises to resolve
-    Promise.all(promises).then(() => {
-      // Process searchResults here if needed
-      console.log(searchResults);
-    });
-  
-    return searchResults.join("\n");
+    return searchResults;
   }
 
-  getAliasLines(aliases: any, options: any) {
-    const aliasLines = [];
-    for (let alias of aliases) {
-      alias = this.preprocess(alias);
-      const aliasHighlightsString = this.addSpacesToText(alias);
-      const aliasStdout = this.findPotentialBackLinks(aliasHighlightsString, options);
-      aliasLines.push(...aliasStdout.split("\n"));
+  async getAliasLines(aliases: any, options: any): Promise<SearchMatch[]> {
+    const aliasLines: SearchMatch[] = [];
+    
+    for (const alias of aliases) {
+      const processedAlias = this.preprocess(alias);
+      const aliasHighlightsString = this.addSpacesToText(processedAlias);
+      const aliasStdout = await this.findPotentialBackLinks(aliasHighlightsString, options);
+      aliasLines.push(...aliasStdout);
     }
+    
     return aliasLines;
   }
 
@@ -154,44 +163,64 @@ export class Patcher {
     }
     return "";
   }
-  // Call `associatedFromCoze`, use `findPotentialBackLinks` with its result, update UI asynchronously
-  useKeywordsAndUpdateUI(query: string, option: any, basename: string, aliases: string[], backlink: any, existingLines: string[]) {
-    this.associatedFromCoze(basename).catch(error => {
-      this.reportError(
-        error,
-        "Error while query coze",
-      );
-      return "";
-    }).then(response => {
-      if (response == "") {
-        return;
-      }
-      console.log("response is " + response);
-      const jsonObject = JSON.parse(response);
-      // Assuming response is already parsed JSON as your structure
-      const keywords = jsonObject.iterations[0].keywords;
-      const translatedKeywords = jsonObject.iterations[0].translatedKeywords;
-      const keywordsSet = [keywords, translatedKeywords]
-      for (const each of keywordsSet) {
-        // Generate a command or any string from keywords you want to pass to findPotentialBackLinks
-        const originCommandFromKeywords = each.join(' '); // or any other logic
-        let commandFromKeywords = this.preprocess(originCommandFromKeywords);
-        commandFromKeywords = this.addSpacesToText(commandFromKeywords);
-        // Call your findPotentialBackLinks with this command string and handle it as a promise
-        const commandResult = this.findPotentialBackLinks(commandFromKeywords, option);
-        let lines = commandResult.split("\n");
-        // Here you would filter lines or any other processing you originally did
-        // ...
-        lines = this.preprocessLines(lines, basename, aliases, existingLines);
-        // Now update the UI
-        this.updateUIWithLines(lines, backlink, 'Potential mentions: ' + originCommandFromKeywords, basename);
-      }
 
-    });
+
+  // Call `associatedFromCoze`, use `findPotentialBackLinks` with its result, update UI asynchronously
+  async useKeywordsAndUpdateUI(query: string, option: any, basename: string, aliases: string[], backlink: any, existingLines: string[]) {
+    // this.associatedFromCoze(basename).catch(error => {
+    //   this.reportError(
+    //     error,
+    //     "Error while query coze",
+    //   );
+    //   return "";
+    // }).then(response => {
+    //   if (response == "") {
+    //     return;
+    //   }
+    //   console.log("response is " + response);
+    //   const jsonObject = JSON.parse(response);
+    //   // Assuming response is already parsed JSON as your structure
+    //   const keywords = jsonObject.iterations[0].keywords;
+    //   const translatedKeywords = jsonObject.iterations[0].translatedKeywords;
+    //   const keywordsSet = [keywords, translatedKeywords]
+    //   for (const each of keywordsSet) {
+    //     // Generate a command or any string from keywords you want to pass to findPotentialBackLinks
+    //     const originCommandFromKeywords = each.join(' '); // or any other logic
+    //     let commandFromKeywords = this.preprocess(originCommandFromKeywords);
+    //     commandFromKeywords = this.addSpacesToText(commandFromKeywords);
+    //     // Call your findPotentialBackLinks with this command string and handle it as a promise
+    //     const commandResult = await this.findPotentialBackLinks(commandFromKeywords, option);
+    //     let lines = commandResult.split("\n");
+    //     // Here you would filter lines or any other processing you originally did
+    //     // ...
+    //     lines = this.preprocessLines(lines, basename, aliases, existingLines);
+    //     // Now update the UI
+    //     this.updateUIWithLines(lines, backlink, 'Potential mentions: ' + originCommandFromKeywords, basename);
+    //   }
+
+    // });
   }
 
-  updateUIWithLines(lines: string[], backlink: any, type: string, filename: string) {
-    lines = lines.sort();
+
+  // Helper function to highlight matches in a line
+  private highlightMatches(line: string, indices: number[][]): string {
+    let highlightedLine = '';
+    let lastIndex = 0;
+
+    indices.sort((a, b) => a[0] - b[0]); // Sort indices by start position
+
+    for (const [start, end] of indices) {
+      highlightedLine += line.slice(lastIndex, start);
+      highlightedLine += `<span class="highlight">${line.slice(start, end)}</span>`;
+      lastIndex = end;
+    }
+
+    highlightedLine += line.slice(lastIndex);
+
+    return highlightedLine;
+  }
+
+  updateUIWithLines(searchMatches: SearchMatch[], backlink: any, type: string, filename: string) {
     // Find the unlinkedHeaderEl in the backlink object
     const unlinkedHeaderEl = backlink?.unlinkedHeaderEl as HTMLElement;
     const div = document.createElement("div");
@@ -216,11 +245,10 @@ export class Patcher {
         //   sectionForLines.className = unlinkedHeaderEl.parentElement.className;
         // }
         // Process each line individually
-        for (const line of lines) {
+        for (const item of searchMatches) {
           // Parse the line to extract the path, basename, and content
-          const [filePath, content] = line.split(":");
-          // const pathParts = filePath.split("/");
-          // const basenameOfContent = pathParts[pathParts.length - 1];
+          const filePath = item.path;
+          const content = item.line;
           const tfile: any = this.plugin.app.vault.getAbstractFileByPath(filePath);
           if (tfile == null) {
             continue;
@@ -228,8 +256,11 @@ export class Patcher {
 
           // Create a new child element for the line
           const lineElement = document.createElement("div");
-          lineElement.textContent = line;
+          lineElement.textContent = item.line;
           lineElement.className = unlinkedHeaderEl.className;
+          // Highlight the matched parts
+          const highlightedLine = this.highlightMatches(content, item.indices);
+          lineElement.innerHTML = highlightedLine;
           lineElement.addEventListener("click", async () => {
             const fileText: string = await this.plugin.app.vault.read(tfile);
             //find start index of card
@@ -298,7 +329,7 @@ export class Patcher {
     return lines;
   }
 
-  patchComponent() {
+  async patchComponent() {
     const patcher = this;
     this.plugin.register(
       around(Component.prototype, {
@@ -381,24 +412,26 @@ export class Patcher {
 
           let highlightsString = this.preprocess(basename);
           highlightsString = patcher.addSpacesToText(highlightsString);
-          const stdout = this.findPotentialBackLinks(highlightsString, options);
-          let lines = stdout.split("\n");
+          this.findPotentialBackLinks(highlightsString, options).then(result => {
+            let lines = result;
 
-          const aimFile: TFile | null | undefined = this.plugin.app.workspace.activeEditor?.file;
-          let aliases: string[] = [];
-          if (aimFile) {
-            const metadataCache = app.metadataCache.getFileCache(aimFile);
-            aliases = metadataCache?.frontmatter?.aliases;
-            if (aliases && aliases.length > 0) {
-              lines.push(...this.getAliasLines(aliases, options));
+            const aimFile: TFile | null | undefined = this.plugin.app.workspace.activeEditor?.file;
+            let aliases: string[] = [];
+            if (aimFile) {
+              const metadataCache = app.metadataCache.getFileCache(aimFile);
+              aliases = metadataCache?.frontmatter?.aliases;
+              // if (aliases && aliases.length > 0) {
+              //   const aliasLines = await this.getAliasLines(aliases, options);
+              //   lines.push(...aliasLines);
+              // }
             }
-          }
-
-          this.useKeywordsAndUpdateUI(highlightsString, options, basename, aliases, backlink, lines);
-          lines = Array.from(new Set(lines));
-          lines = this.preprocessLines(lines, basename, aliases);
-
-          this.updateUIWithLines(lines, backlink, 'Potential mentions', basename);
+  
+            // this.useKeywordsAndUpdateUI(highlightsString, options, basename, aliases, backlink, lines);
+            // lines = Array.from(new Set(lines));
+            // lines = this.preprocessLines(lines, basename, aliases);
+  
+            this.updateUIWithLines(lines, backlink, 'Potential mentions', basename);
+          })
 
 
         } catch (error) {
