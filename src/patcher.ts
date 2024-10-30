@@ -498,27 +498,28 @@ export class Patcher {
     );
   }
   addSpacesToText(text: string): string {
-    // Match Chinese characters and English words separately
-    const matches = text.match(/[\u4e00-\u9fff]|[\w']+/g);
+    // // Match Chinese characters and English words separately
+    // const matches = text.match(/[\u4e00-\u9fff]|[\w']+/g);
 
-    if (matches) {
-      // Add "'" before English words and spaces between Chinese characters and English words
-      const processedMatches = matches.map(match => {
-        // Check if the match is an English word by checking if it contains any ASCII characters
-        if (/[A-Za-z0-9_]/.test(match)) {
-          // If it's an English word, prepend it with "'"
-          return "'" + match;
-        } else {
-          // If it's not an English word, return it as is
-          return match;
-        }
-      });
+    // if (matches) {
+    //   // Add "'" before English words and spaces between Chinese characters and English words
+    //   const processedMatches = matches.map(match => {
+    //     // Check if the match is an English word by checking if it contains any ASCII characters
+    //     if (/[A-Za-z0-9_]/.test(match)) {
+    //       // If it's an English word, prepend it with "'"
+    //       return "'" + match;
+    //     } else {
+    //       // If it's not an English word, return it as is
+    //       return match;
+    //     }
+    //   });
 
-      return processedMatches.join(' ');
-    } else {
-      // If no matches, return the original text
-      return text;
-    }
+    //   return processedMatches.join(' ');
+    // } else {
+    //   // If no matches, return the original text
+    //   return text;
+    // }
+    return text;
   }
 
   patchSearchResultItem(searchResultItem: any) {
