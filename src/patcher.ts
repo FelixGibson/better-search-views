@@ -31,6 +31,7 @@ interface SearchMatch {
   path: string;
   line: string;
   indices: number[][];
+  score: number;
 }
 
 
@@ -114,7 +115,8 @@ export class Patcher {
           searchResults.push({
             path: note.path,
             line: result.item,
-            indices: indices
+            indices: indices,
+            score: result.score ?? 0
           });
         }
       });
@@ -123,16 +125,16 @@ export class Patcher {
     return searchResults;
   }
 
-  async getAliasLines(aliases: any, options: any): Promise<SearchMatch[]> {
+  async getAliasLines(aliases: string[], options: any): Promise<SearchMatch[]> {
     const aliasLines: SearchMatch[] = [];
-    
+  
     for (const alias of aliases) {
       const processedAlias = this.preprocess(alias);
       const aliasHighlightsString = this.addSpacesToText(processedAlias);
       const aliasStdout = await this.findPotentialBackLinks(aliasHighlightsString, options);
       aliasLines.push(...aliasStdout);
     }
-    
+  
     return aliasLines;
   }
 
@@ -428,24 +430,27 @@ export class Patcher {
           highlightsString = patcher.addSpacesToText(highlightsString);
           this.findPotentialBackLinks(highlightsString, options).then(result => {
             let lines = result;
-
+          
             const aimFile: TFile | null | undefined = this.plugin.app.workspace.activeEditor?.file;
             let aliases: string[] = [];
             if (aimFile) {
               const metadataCache = app.metadataCache.getFileCache(aimFile);
-              aliases = metadataCache?.frontmatter?.aliases;
-              // if (aliases && aliases.length > 0) {
-              //   const aliasLines = await this.getAliasLines(aliases, options);
-              //   lines.push(...aliasLines);
-              // }
+              aliases = metadataCache?.frontmatter?.aliases || [];
             }
-  
-            // this.useKeywordsAndUpdateUI(highlightsString, options, basename, aliases, backlink, lines);
-            // lines = Array.from(new Set(lines));
-            // lines = this.preprocessLines(lines, basename, aliases);
-  
-            this.updateUIWithLines(lines, backlink, 'Potential mentions', basename);
-          })
+          
+            if (aliases && aliases.length > 0) {
+              this.getAliasLines(aliases, options).then(aliasLines => {
+                lines = lines.concat(aliasLines);
+                lines = Array.from(new Set(lines)); // Remove duplicates
+          
+                this.updateUIWithLines(lines, backlink, 'Potential mentions', basename);
+              });
+            } else {
+              lines = Array.from(new Set(lines)); // Remove duplicates
+          
+              this.updateUIWithLines(lines, backlink, 'Potential mentions', basename);
+            }
+          });
 
 
         } catch (error) {
